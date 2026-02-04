@@ -9,8 +9,7 @@ import logging
 import json
 import re
 
-# Set your OpenAI API key
-
+# Clave de API de OpenAI
 api_key = "YOUR_API_KEY"
 
 model = "gpt-4o-mini"
@@ -19,15 +18,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 class LaunchRequestHandler(AbstractRequestHandler):
-    """Handler for Skill Launch."""
+    """Handler para el lanzamiento de la skill."""
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
-
         return ask_utils.is_request_type("LaunchRequest")(handler_input)
 
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
-        speak_output = "Chat G.P.T. mode activated"
+        speak_output = "Modo Chat G.P.T. activado."
 
         session_attr = handler_input.attributes_manager.session_attributes
         session_attr["chat_history"] = []
@@ -40,7 +38,7 @@ class LaunchRequestHandler(AbstractRequestHandler):
         )
 
 class GptQueryIntentHandler(AbstractRequestHandler):
-    """Handler for Gpt Query Intent."""
+    """Handler para la intención GptQueryIntent."""
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
         return ask_utils.is_intent_name("GptQueryIntent")(handler_input)
@@ -54,45 +52,45 @@ class GptQueryIntentHandler(AbstractRequestHandler):
             session_attr["chat_history"] = []
             session_attr["last_context"] = None
         
-        # Process the query to determine if it's a follow-up question
+        # Procesar la consulta para detectar si es de seguimiento
         processed_query, is_followup = process_followup_question(query, session_attr.get("last_context"))
         
-        # Generate response with enhanced context handling
+        # Generar respuesta con manejo de contexto
         response_data = generate_gpt_response(session_attr["chat_history"], processed_query, is_followup)
         
-        # Handle the response data which could be a tuple or string
+        # La función puede devolver una tupla (texto, preguntas) o solo texto
         if isinstance(response_data, tuple) and len(response_data) == 2:
             response_text, followup_questions = response_data
         else:
-            # Fallback for error cases
+            # Fallback ante errores
             response_text = str(response_data)
             followup_questions = []
         
-        # Store follow-up questions in the session
+        # Guardar preguntas de seguimiento en sesión
         session_attr["followup_questions"] = followup_questions
         
-        # Update the conversation history with just the response text, not the questions
+        # Actualizar historial (solo texto de respuesta, sin preguntas)
         session_attr["chat_history"].append((query, response_text))
         session_attr["last_context"] = extract_context(query, response_text)
         
-        # Format the response with follow-up suggestions if available
+        # Formatear la respuesta con sugerencias si las hay
         response = response_text
         if followup_questions and len(followup_questions) > 0:
-            # Add a short pause before the suggestions
+            # Pausa breve antes de las sugerencias
             response += " <break time=\"0.5s\"/> "
-            response += "You could ask: "
-            # Join with 'or' for the last question
+            response += "Podrías preguntar: "
+            # Unir con 'o' la última pregunta
             if len(followup_questions) > 1:
                 response += ", ".join([f"'{q}'" for q in followup_questions[:-1]])
-                response += f", or '{followup_questions[-1]}'"
+                response += f", o '{followup_questions[-1]}'"
             else:
                 response += f"'{followup_questions[0]}'"
-            response += ". <break time=\"0.5s\"/> What would you like to know?"
+            response += ". <break time=\"0.5s\"/> ¿Qué te gustaría saber?"
         
-        # Prepare response with reprompt that includes the follow-up questions
-        reprompt_text = "You can ask me another question or say stop to end the conversation."
+        # Reprompt (con y sin sugerencias)
+        reprompt_text = "Puedes hacerme otra pregunta o decir 'para' para terminar la conversación."
         if 'followup_questions' in session_attr and session_attr['followup_questions']:
-            reprompt_text = "You can ask me another question, say 'next' to hear more suggestions, or say stop to end the conversation."
+            reprompt_text = "Puedes hacerme otra pregunta, decir 'siguiente' para escuchar más sugerencias o decir 'para' para terminar la conversación."
         
         return (
             handler_input.response_builder
@@ -102,7 +100,7 @@ class GptQueryIntentHandler(AbstractRequestHandler):
         )
 
 class CatchAllExceptionHandler(AbstractExceptionHandler):
-    """Generic error handling to capture any syntax or routing errors."""
+    """Manejo genérico de errores de sintaxis o enrutado."""
     def can_handle(self, handler_input, exception):
         # type: (HandlerInput, Exception) -> bool
         return True
@@ -111,7 +109,7 @@ class CatchAllExceptionHandler(AbstractExceptionHandler):
         # type: (HandlerInput, Exception) -> Response
         logger.error(exception, exc_info=True)
 
-        speak_output = "Sorry, I had trouble doing what you asked. Please try again."
+        speak_output = "Lo siento, he tenido problemas para hacer lo que pediste. Inténtalo de nuevo."
 
         return (
             handler_input.response_builder
@@ -121,7 +119,7 @@ class CatchAllExceptionHandler(AbstractExceptionHandler):
         )
 
 class CancelOrStopIntentHandler(AbstractRequestHandler):
-    """Single handler for Cancel and Stop Intent."""
+    """Handler único para Cancel y Stop."""
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
         return (ask_utils.is_intent_name("AMAZON.CancelIntent")(handler_input) or
@@ -129,7 +127,7 @@ class CancelOrStopIntentHandler(AbstractRequestHandler):
 
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
-        speak_output = "Leaving Chat G.P.T. mode"
+        speak_output = "Saliendo del modo Chat G.P.T."
 
         return (
             handler_input.response_builder
@@ -138,8 +136,8 @@ class CancelOrStopIntentHandler(AbstractRequestHandler):
         )
 
 def process_followup_question(question, last_context):
-    """Processes a question to determine if it's a follow-up and enhances it with context if needed"""
-    # Common follow-up indicators
+    """Determina si la pregunta es de seguimiento y añade contexto si es necesario."""
+    # Indicadores comunes de seguimiento (en inglés por compatibilidad con consultas mixtas)
     followup_patterns = [
         r'^(what|how|why|when|where|who|which)\s+(about|is|are|was|were|do|does|did|can|could|would|should|will)\s',
         r'^(and|but|so|then|also)\s',
@@ -151,24 +149,19 @@ def process_followup_question(question, last_context):
     
     is_followup = False
     
-    # Check if the question matches any follow-up patterns
     for pattern in followup_patterns:
         if re.search(pattern, question.lower()):
             is_followup = True
             break
     
-    # If it's a follow-up and we have context, we don't need to modify the question
-    # The context will be handled in the generate_gpt_response function
     return question, is_followup
 
 def extract_context(question, response):
-    """Extracts the main context from a Q&A pair for future reference"""
-    # This is a simple implementation that just returns the question and response
-    # In a more advanced implementation, you could use NLP to extract key entities
+    """Extrae un contexto básico de una pareja P&R para referencia futura."""
     return {"question": question, "response": response}
 
 def generate_followup_questions(conversation_context, query, response, count=2):
-    """Generates concise follow-up questions based on the conversation context"""
+    """Genera preguntas de seguimiento concisas según el contexto de conversación."""
     try:
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -176,26 +169,26 @@ def generate_followup_questions(conversation_context, query, response, count=2):
         }
         url = "https://api.openai.com/v1/chat/completions"
         
-        # Prepare a focused prompt for brief follow-ups
+        # Prompt enfocado a preguntas breves de seguimiento
         messages = [
-            {"role": "system", "content": "You are a helpful assistant that suggests short follow-up questions."},
-            {"role": "user", "content": """Based on the conversation, suggest 2 very short follow-up questions (max 4 words each). 
-            Make them direct and simple. Return ONLY the questions separated by '|'.
-            Example: What's the capital?|How big is it?"""}
+            {"role": "system", "content": "Eres un asistente útil que sugiere preguntas de seguimiento cortas."},
+            {"role": "user", "content": """Según la conversación, sugiere 2 preguntas de seguimiento muy breves (máx. 4 palabras cada una).
+Hazlas directas y simples. Devuelve SOLO las preguntas separadas por '|'.
+Ejemplo: ¿Cuál es la capital?|¿Qué tamaño tiene?"""}
         ]
         
-        # Add conversation context
+        # Añadir contexto de conversación
         if conversation_context:
             last_q, last_a = conversation_context[-1]
-            messages.append({"role": "user", "content": f"Previous Q: {last_q}"})
+            messages.append({"role": "user", "content": f"Pregunta anterior: {last_q}"})
             messages.append({"role": "assistant", "content": last_a})
         
-        messages.append({"role": "user", "content": f"Current Q: {query}"})
+        messages.append({"role": "user", "content": f"Pregunta actual: {query}"})
         messages.append({"role": "assistant", "content": response})
-        messages.append({"role": "user", "content": "Follow-up questions (separated by |):"})
+        messages.append({"role": "user", "content": "Preguntas de seguimiento (separadas por |):"})
         
         data = {
-            "model": "gpt-3.5-turbo",  # Using a faster model for this
+            "model": "gpt-3.5-turbo",  # Modelo rápido para las sugerencias
             "messages": messages,
             "max_completion_tokens": 50,
             "temperature": 0.7
@@ -204,48 +197,47 @@ def generate_followup_questions(conversation_context, query, response, count=2):
         response = requests.post(url, headers=headers, data=json.dumps(data), timeout=3)
         if response.ok:
             questions_text = response.json()['choices'][0]['message']['content'].strip()
-            # Clean and split the response
+            # Limpiar y dividir
             questions = [q.strip().rstrip('?') for q in questions_text.split('|') if q.strip()]
-            # Ensure we have valid questions
+            # Validar longitud
             questions = [q for q in questions if len(q.split()) <= 4 and len(q) > 0][:2]
             
-            # If we don't have enough questions, provide defaults
+            # Si no hay suficientes, usar por defecto (en español)
             if len(questions) < 2:
-                questions = ["Tell me more", "Give me an example"]
+                questions = ["Dime más", "Pon un ejemplo"]
                 
             logger.info(f"Generated follow-up questions: {questions}")
             return questions
             
         logger.error(f"API Error: {response.text}")
-        return ["Tell me more", "Give me an example"]
+        return ["Dime más", "Pon un ejemplo"]
         
     except Exception as e:
         logger.error(f"Error in generate_followup_questions: {str(e)}")
-        return ["Tell me more", "Give me an example"]
+        return ["Dime más", "Pon un ejemplo"]
 
 def generate_gpt_response(chat_history, new_question, is_followup=False):
-    """Generates a GPT response to a question with enhanced context handling"""
+    """Genera una respuesta GPT con manejo de contexto mejorado."""
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     url = "https://api.openai.com/v1/chat/completions"
     
-    # Create a more informative system message based on whether this is a follow-up
-    system_message = "You are a helpful assistant. Answer in 50 words or less."
+    # Mensaje del sistema, ajustado si es seguimiento
+    system_message = "Eres un asistente útil. Responde en 50 palabras o menos."
     if is_followup:
-        system_message += " This is a follow-up question to the previous conversation. Maintain context without repeating information already provided."
+        system_message += " Esta es una pregunta de seguimiento. Mantén el contexto sin repetir información ya dada."
     
     messages = [{"role": "system", "content": system_message}]
     
-    # Include relevant conversation history
-    # For follow-ups, we include more context. For new questions, we limit to save tokens
+    # Incluir historial (menos cuando no es seguimiento, para ahorrar tokens)
     history_limit = 10 if not is_followup else 5
     for question, answer in chat_history[-history_limit:]:
         messages.append({"role": "user", "content": question})
         messages.append({"role": "assistant", "content": answer})
     
-    # Add the new question
+    # Añadir la nueva pregunta
     messages.append({"role": "user", "content": new_question})
     
     data = {
@@ -260,9 +252,8 @@ def generate_gpt_response(chat_history, new_question, is_followup=False):
         if response.ok:
             response_text = response_data['choices'][0]['message']['content']
             
-            # Generate follow-up questions for the response
+            # Generar preguntas de seguimiento siempre
             try:
-                # Always try to generate follow-up questions
                 followup_questions = generate_followup_questions(
                     chat_history + [(new_question, response_text)], 
                     new_question, 
@@ -278,10 +269,10 @@ def generate_gpt_response(chat_history, new_question, is_followup=False):
             return f"Error {response.status_code}: {response_data['error']['message']}", []
     except Exception as e:
         logger.error(f"Error generating response: {str(e)}")
-        return f"Error generating response: {str(e)}", []
+        return f"Error al generar la respuesta: {str(e)}", []
 
 class ClearContextIntentHandler(AbstractRequestHandler):
-    """Handler for clearing conversation context."""
+    """Handler para limpiar el contexto de la conversación."""
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
         return ask_utils.is_intent_name("ClearContextIntent")(handler_input)
@@ -292,7 +283,7 @@ class ClearContextIntentHandler(AbstractRequestHandler):
         session_attr["chat_history"] = []
         session_attr["last_context"] = None
         
-        speak_output = "I've cleared our conversation history. What would you like to talk about?"
+        speak_output = "He borrado nuestro historial de conversación. ¿Sobre qué te gustaría hablar?"
         
         return (
             handler_input.response_builder
